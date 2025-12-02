@@ -1,5 +1,6 @@
 import           MUtils
 
+--A nice and really fast part 1
 dSize :: Int -> Int
 dSize n = show n |> length
 
@@ -34,7 +35,6 @@ countSilly :: Int -> Int -> Int
 countSilly l u
     | l'' > u = 0
     | ls'' == us = sumSilliness l'' u
-    -- | ls'' == us = if (l'' > u) then 0 else  1 + ((u - l'') `div` (sillyBase ls''))
     | otherwise = countSilly l'' (biggestSilly ls'') + countSilly (smallestSilly (ls'' + 2)) u
   where
     ls = dSize l
@@ -49,13 +49,17 @@ sumSilliness l u = l * amount + ((amount * (amount - 1)) `div` 2) * base
     base = sillyBase (dSize l)
     amount = 1 + ((u - l) `div` base)
 
--- countSilly l u
-    -- | l > u = 0
-    -- | otherwise = (if isSilly l then 1 else 0) + countSilly (nextSilly l) u
 parse :: String -> [(Int, Int)]
 parse xs = splitOn ',' xs |> map (splitOn '-') |> map2 readInt |> map t2fromList
 
 part1 :: [String] -> Int
 part1 xs = parse (head xs) |> map (uncurry countSilly) |> sum
+
+--A brute force part 2 xD
+isSillier :: Int -> Bool
+isSillier xs = [ 1 .. (length (show xs) `div` 2) ] |> map (\n -> groupInto2D n (show xs)) |> map unique |> map length |> elem 1
+
+part2 :: [String] -> Int
+part2 xs = parse (head xs) |> map (\(a, b) -> [ a .. b ]) |> concat |> filter isSillier |> sum
 
 test = [ "11-22,95-115,998-1012,1188511880-1188511890,222220-222224,1698522-1698528,446443-446449,38593856-38593862,565653-565659,824824821-824824827,2121212118-2121212124" ]
