@@ -1,6 +1,8 @@
+--Version 1.1
+
 module GridUtils (gridFromList, gridFromNeighbourMap, getGridPosition, neighbourMapO, neighbourMapD, neighbourMap, buildNeighbours, directionsO, directionsD, directionsO3, directionsD3,
     getValue, changeValue, changeAllValues, updateNeighbour, getNeighbours, addPoints, mulPoint,
-    pointDistanceO, getConnected, gridBounds, allPointsInRangeO, showCharGrid, showStringGrid, showGrid, showGrid1,
+    pointDistanceO, getConnected, gridBounds, allPointsInRangeO, allNMPoints, showCharGrid, showStringGrid, showGrid, showGrid1,
     simplePathO, simplePathO',
     allDirs, rotateDirC, rotateDirA, flipDir, moveDir, stepDir, deflectDir, followDirPath, dirToPoint, pointToDirs, isHorizontal, isVertical,
     Grid, NeighbourMap, Point, Point3, Dir (East, West , North , South)) where
@@ -84,6 +86,8 @@ gridBounds g = (map fst g' |> map fst |> maximum, map fst g' |> map snd |> maxim
 allPointsInRangeO :: Grid a -> Int -> Point -> [Point]
 allPointsInRangeO g r p = [-r..r] |> map (\dx-> let yMax = r - abs dx in [-yMax .. yMax] |> map (pair dx)) |> concat |> map (addPoints p) |> filter (`Map.member` g) |> filter (/=p)
 
+allNMPoints :: NeighbourMap a -> [Point]
+allNMPoints nm = combinations [0..x] [0..y] where (x,y) = gridFromNeighbourMap nm |> gridBounds
 
 showCharGrid :: Grid Char -> [String]
 showCharGrid g = [0..maxY] |> map (\y-> [0..maxX] |> map (\x-> g Map.! (x,y))) where
@@ -130,14 +134,14 @@ data Dir = East | West | North | South
 allDirs :: [Dir]
 allDirs = [East, West, North, South]
 
---Rotates a direction clockwise
+--Rotates a direction anticlockwise
 rotateDirA :: Dir -> Dir
 rotateDirA North = West
 rotateDirA South = East
 rotateDirA East = North
 rotateDirA West = South
 
---Rotates a direction antilockwise
+--Rotates a direction clockwise
 rotateDirC :: Dir -> Dir
 rotateDirC North = East
 rotateDirC South = West
