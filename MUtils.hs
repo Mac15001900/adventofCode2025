@@ -8,7 +8,7 @@ module MUtils (
    pair, pairS, tupleWith, mapFst, mapSnd, mapBoth, fst3, snd3, thd3, fst4, snd4, thd4, frh4, t2toList, t3toList, t4toList, t5toList, t2fromList, t3fromList, t4fromList, t5fromList,
    flattenMaybe, removeNothing,
    repeatF, repeatUntil, examine, examineStr, examineRepeat,
-   factorial, (//), nck, valueBetween, mean, meanI, sign,
+   factorial, (//), nck, inBounds, valueBetween, mean, meanI, sign,
    aStar, tryAStar, bfsAllCosts, memoizedCount, (|>), readInt
     ) where
 
@@ -190,7 +190,7 @@ binarySearch :: Integral i => (i->Bool) -> (i,i) -> i
 binarySearch p (x,y) | x==y = x
    | p (x + (y-x) `div` 2) = binarySearch p (x, x + (y-x) `div` 2)
    | otherwise =  binarySearch p (x + (y-x) `div` 2 + 1, y)
-   
+
 --Produces a list of tuples, showing how common is each element in the input list. Not very efficient.
 histogram :: Ord a => [a] -> [(Int, a)]
 histogram xs = zip (map (\x-> count (==x) xs) xs') xs' |> sortOn fst where xs' = sort xs |> unique
@@ -376,6 +376,10 @@ x // y = (fromIntegral x) / (fromIntegral y)
 nck :: (Integral a) => a -> a -> a
 nck n k = (factorial n) `div` ((factorial k) * (factorial (n-k)))
 
+inBounds :: Ord a => (a,a) -> a -> Bool
+inBounds (a,b) x = x >= min a b && x <= max a b
+
+--Use valueBetween when the order of arguments is known
 valueBetween :: Ord a => (a,a) -> a -> Bool
 valueBetween (low,high) x = x >= low && x <= high
 
