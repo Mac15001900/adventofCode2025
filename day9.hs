@@ -15,10 +15,12 @@ calcArea ((x1, y1), (x2, y2)) = (abs (x1 - x2) + 1) * (abs (y1 - y2) + 1)
 part1 :: [String] -> Int
 part1 xs = parse xs |> combinationsSelf |> map calcArea |> maximum
 
---There are funny edge cases where this doesn't quite work, but they don't happen in the input. I might still fix it at some point when I feel like it.
+--We draw a line directly upwards, and count if it passed through an odd number of edges. Cutting off the rightmost tile of each edge to deal with vertical ones
 isInside :: [Edge] -> Point -> Bool
-isInside es (x, y) = any (\((x1, y1), (x2, y2)) -> x == x1 && x == x2 && inBounds (y1, y2) y || y == y1 && y == y2 && inBounds (x1, x2) x) es
-    || (count (\((x1, y1), (x2, y2)) -> y1 == y2 && y1 < y && inBounds (x1, x2) x) es |> odd)
+isInside es (x, y) = isOnEdge || isInside
+  where
+    isOnEdge = any (\((x1, y1), (x2, y2)) -> x == x1 && x == x2 && inBounds (y1, y2) y || y == y1 && y == y2 && inBounds (x1, x2) x) es
+    isInside = odd $ count (\((x1, y1), (x2, y2)) -> y1 == y2 && y1 < y && inBounds (min x1 x2, (max x1 x2) - 1) x) es
 
 --For each edge check if the coordinate that changes is not entirely outside of the area and the coordinate that doesn't change is within the area
 anyEdgeInArea :: [Edge] -> Area -> Bool
