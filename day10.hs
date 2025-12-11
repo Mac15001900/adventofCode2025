@@ -10,8 +10,6 @@ import           MUtils
 
 type Lamps = Map.Map Int Bool
 
-type Joltage = Map.Map Int Int
-
 type LampTarget = [Bool]
 
 type JoltageTarget = [Int]
@@ -45,20 +43,6 @@ distance t ls = zipWithIndexes t |> count (\(t, i) -> ls Map.! i /= t)
 part1 :: [String] -> Int
 part1 xs = map parse xs |> map findCost |> sum
 
-pressButton2 :: Joltage -> Button -> Joltage
-pressButton2 j bs = foldr (Map.adjust (+ 1)) j bs
-
-distance2 :: JoltageTarget -> Joltage -> Int
-distance2 jt js = zipWithIndexes jt |> map (\(j, i) -> dif j (js Map.! i)) |> maximum
-  where
-    dif t v = if t - v >= 0 then t - v else 1000000
-
-findCost2 :: Machine -> Int
-findCost2 m@(_, bs, t) = aStar (\l' -> map (pressButton2 l') bs |> map (, 1)) (distance2 t) (map (, 0) (indexes t) |> Map.fromList) ((== 0) . distance2 t)
-
-part2Old :: [String] -> Int
-part2Old xs = map parse xs |> map findCost2 |> sum
-
 test = [ "[.##.] (3) (1,3) (2) (2,3) (0,2) (0,1) {3,5,4,7}"
        , "[...#.] (0,2,3,4) (2,3) (0,4) (0,1,2) (1,2,3,4) {7,5,12,7,2}"
        , "[.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}"
@@ -78,7 +62,13 @@ type Problem = ([Equation], [Button], JoltageTarget)
 type Refiner = (Problem -> Assignments -> Maybe Assignments)
 
 buildProblem :: Machine -> Problem
-buildProblem (_, bs, jt) = (indexes jt |> map (\i -> (indexes bs |> filter (\i' -> i `elem` (bs !! i')), jt !! i)), bs, jt)
+buildProblem (_, bs, jt) = (indexes jt |> map (\i -> (indexes bs |> filter (\i' -> i `elem` (bs !! i')), jt !! i)) |> expandEquations, bs, jt)
+
+expandEquations :: [Equation] -> [Equation]
+expandEquations eqs = if null newEqs then eqs else expandEquations (eqs ++ newEqs)
+  where
+    newEqs = eqs |> map (\eq -> filter (\eq' -> length (fst eq') > length (fst eq)) eqs |> filter (\eq' -> length (intersect (fst eq) (fst eq')) == length (fst eq))
+                         |> map (\(vs, s) -> (filter (`notElem` (fst eq)) vs, s - snd eq))) |> concat |> unique |> filter (`notElem` eqs)
 
 basicAssignments :: Problem -> Assignments
 basicAssignments (eqs, bs, _) = indexes bs |> map (\b -> filter (elem b . fst) eqs |> map snd |> minimum |> (0, ))
@@ -107,14 +97,17 @@ basicUpdates (eqs, bs, _) as = if any isNothing as' then Nothing else Just (catM
 applyCap :: Int -> Problem -> Assignments -> Maybe Assignments
 applyCap n _ as = if dof >= 0 && all isValid as' then Just as' else Nothing
   where
-    dof = sum (map fst as) - n
+    -- applyCap n _ as = if dof >= 0 && all isValid as' then Just (if as' /= as then (trace ("-!-!-!-" ++ show as') as') else as') else Nothing
+    dof = n - sum (map fst as)
     as' = map (\(l, u) -> (l, min u (l + dof))) as
 
 applyRefinements :: Problem -> [Refiner] -> Assignments -> Maybe Assignments
 applyRefinements p rs as
-    | isNothing as' = Nothing
-    | as == fromJust as' = Just as
-    | otherwise = applyRefinements p rs (fromJust as')
+    -- | trace ("-------" ++ show as) False = error ""
+
+        | isNothing as' = Nothing
+        | as == fromJust as' = Just as
+        | otherwise = applyRefinements p rs (fromJust as')
   where
     as' = foldr (\r as'' -> r p =<< as'') (Just as) rs
 
@@ -124,22 +117,22 @@ getValues = (!!)
 isDone :: Maybe Assignments -> Bool
 isDone = maybe False (all (\(l, u) -> l == u))
 
-solve :: Machine -> Assignments
-solve m = let p = buildProblem m in solve' p (sum (thd3 p)) (basicAssignments p) |> fromJust
+solve :: Machine -> Int
+solve m = let p = buildProblem m in solve' p (sum (thd3 p)) (basicAssignments p) |> fromJust |> trace "Another one done!"
 
-solve' :: Problem -> Int -> Assignments -> Maybe Assignments
+solve' :: Problem -> Int -> Assignments -> Maybe Int
 solve' p bestSol as
-    -- | traceShow as False = error ""
+    -- | traceShow (as, bestSol) False = error ""
 
         | isNothing as' = Nothing
-        | isDone as' = as'
-        -- | otherwise = map (solve' p) (bisectLargest (fromJust as')) |> filter isJust |> (++ [ Nothing ]) |> head
-        | otherwise = bisectLargest (fromJust as') |> map (solve' p bestSol) |> pickBest
+        | isDone as' = Just (score (fromJust as'))
+        | otherwise = catMaybes [ solL, solU ] |> sort |> map Just |> (++ [ Nothing ]) |> head
   where
     as' = applyRefinements p [ basicUpdates, applyCap bestSol ] as
-
-pickBest :: [Maybe Assignments] -> Maybe Assignments
-pickBest xs = catMaybes xs |> sortOn score |> map Just |> (++ [ Nothing ]) |> head
+    [asL, asU] = bisectLargest (fromJust as')
+    solU = solve' p bestSol asU
+    bestSol' = if isJust solU then min (fromJust solU) bestSol else bestSol
+    solL = solve' p bestSol' asL
 
 bisectLargest :: Assignments -> [Assignments]
 bisectLargest as = [ (l, (l + u) `div` 2), ((l + u) `div` 2 + 1, u) ] |> map (\a -> setElement maxI a as)
@@ -157,7 +150,9 @@ pest xs = applyRefinements p [ basicUpdates ] (basicAssignments p)
     p = buildProblem m
 
 part2 :: [String] -> Int
-part2 xs = map parse xs |> map solve |> map score |> sum
+part2 xs = map parse xs |> map solve |> sum
+
+testProblem = head test |> parse |> buildProblem
 
 main :: IO ()
 main = do
